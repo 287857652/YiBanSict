@@ -5,9 +5,9 @@ import util
 import sys
 import datetime
 import time
+from threading import Thread
 
 path = sys.path[0]
-
 
 def Process(phone, password, nickname):
     try:
@@ -66,7 +66,9 @@ if __name__ == '__main__':
                 username = i.split("|")[0].strip()
                 password = i.split("|")[1].strip()
                 nickname = i.split("|")[2].strip()
-                Process(username, password, nickname)
+                t = Thread(target=Process, args=(username, password, nickname,))
+                t.start()
+            t.join()
     except:
         print("""请检查当前目录下是否存在users.txt, 格式如下
                 phone|password|name
