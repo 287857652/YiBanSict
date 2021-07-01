@@ -1,6 +1,7 @@
 import re
 import requests
 import util
+import time
 class YiBan:
     CSRF = "sui-bian-fang-dian-dong-xi"  # 随机值 随便填点东西
     COOKIES = {"csrf_token": CSRF}  # 固定cookie 无需更改
@@ -24,25 +25,28 @@ class YiBan:
             return None
 
     def login(self):
-        params = {
-            "mobile": self.account,
-            "imei": "0",
-            "password": self.passwd
-        }
-        # 最新不需要加密密码直接登录的接口来自我B站视频评论用户：破损的鞘翅(bilibili_id:45807603)
-        r = self.request(url="https://mobile.yiban.cn/api/v3/passport/login", params=params)
-        if r is not None and str(r["response"]) == "100":
-            self.access_token = r["data"]["user"]["access_token"]
-            return r
-        else:
-            raise Exception("账号或密码错误")
+        while True:
+            params = {
+                "mobile": self.account,
+                "imei": "0",
+                "password": self.passwd
+            }
+            r = self.request(url="https://mobile.yiban.cn/api/v3/passport/login", params=params)
+            if r is not None and str(r["response"]) == "100":
+                self.access_token = r["data"]["user"]["access_token"]
+                self.COOKIES["loginToken"] = r["data"]["user"]["access_token"]
+
+                return r
+            else:
+                continue
+
     def getHome(self):
         params = {
             "access_token": self.access_token,
         }
-        r = self.request(url="https://mobile.yiban.cn/api/v3/home", params=params)
+        r = self.request(url="https://mobile.yiban.cn/api/v3/home", params=params, cookies=self.COOKIES)
         self.name = r["data"]["user"]["userName"]
-        for i in r["data"]["hotApps"]: # 动态取得iapp号 20201117更新
+        for i in r["data"]["hotApps"]:
             if i["name"] == "商职校本化":
                 self.iapp = re.findall(r"(iapp.*)\?", i["url"])[0]
         return r
@@ -51,9 +55,8 @@ class YiBan:
             "act": self.iapp,
             "v": self.access_token
         }
-        print()
-        location = self.session.get("http://f.yiban.cn/iapp/index",params=params,
-                                    allow_redirects=False).headers.get("Location")
+        location = self.session.get("https://f.yiban.cn/iapp/index",params=params,
+                                    allow_redirects=False, cookies=self.COOKIES).headers.get("Location")
         if location is None:
             raise Exception("该用户可能没进行校方认证，无此APP权限")
         verifyRequest = re.findall(r"verify_request=(.*?)&", location)[0]
